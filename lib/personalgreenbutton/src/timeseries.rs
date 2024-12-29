@@ -1,4 +1,7 @@
-use arrow_array::{Date64Array, Float32Array, Int32Array, StringArray};
+use arrow::{
+    array::{ArrayRef, Date64Array, Float32Array, Int32Array, RecordBatch, StringArray},
+    error::ArrowError,
+};
 use parquet::{arrow::ArrowWriter, basic::Compression, file::properties::WriterProperties};
 use regex::Regex;
 use wasm_bindgen::prelude::wasm_bindgen;
@@ -181,72 +184,68 @@ impl TimeSeries {
         self.uom.extend(other.uom);
     }
 
-    pub fn as_record_batch(self) -> Result<arrow_array::RecordBatch, arrow_schema::ArrowError> {
-        return arrow_array::RecordBatch::try_from_iter(vec![
+    pub fn as_record_batch(self) -> Result<RecordBatch, ArrowError> {
+        return RecordBatch::try_from_iter(vec![
             (
                 "title",
-                std::sync::Arc::new(StringArray::from(self.title)) as arrow_array::ArrayRef,
+                std::sync::Arc::new(StringArray::from(self.title)) as ArrayRef,
             ),
             (
                 "cost",
-                std::sync::Arc::new(Float32Array::from(self.cost)) as arrow_array::ArrayRef,
+                std::sync::Arc::new(Float32Array::from(self.cost)) as ArrayRef,
             ),
             (
                 "quality",
-                std::sync::Arc::new(StringArray::from(self.quality)) as arrow_array::ArrayRef,
+                std::sync::Arc::new(StringArray::from(self.quality)) as ArrayRef,
             ),
             (
                 "value",
-                std::sync::Arc::new(Float32Array::from(self.value)) as arrow_array::ArrayRef,
+                std::sync::Arc::new(Float32Array::from(self.value)) as ArrayRef,
             ),
             (
                 "tou",
-                std::sync::Arc::new(Int32Array::from(self.tou)) as arrow_array::ArrayRef,
+                std::sync::Arc::new(Int32Array::from(self.tou)) as ArrayRef,
             ),
             (
                 "time_period_start_unix_ms",
-                std::sync::Arc::new(Date64Array::from(self.time_period_start_unix_ms))
-                    as arrow_array::ArrayRef,
+                std::sync::Arc::new(Date64Array::from(self.time_period_start_unix_ms)) as ArrayRef,
             ),
             (
                 "time_period_duration",
                 std::sync::Arc::new(Int32Array::from(self.time_period_duration_seconds))
-                    as arrow_array::ArrayRef,
+                    as ArrayRef,
             ),
             (
                 "accumulation_behaviour",
-                std::sync::Arc::new(StringArray::from(self.accumulation_behaviour))
-                    as arrow_array::ArrayRef,
+                std::sync::Arc::new(StringArray::from(self.accumulation_behaviour)) as ArrayRef,
             ),
             (
                 "commodity",
-                std::sync::Arc::new(StringArray::from(self.commodity)) as arrow_array::ArrayRef,
+                std::sync::Arc::new(StringArray::from(self.commodity)) as ArrayRef,
             ),
             (
                 "currency",
-                std::sync::Arc::new(StringArray::from(self.currency)) as arrow_array::ArrayRef,
+                std::sync::Arc::new(StringArray::from(self.currency)) as ArrayRef,
             ),
             (
                 "data_qualifier",
-                std::sync::Arc::new(StringArray::from(self.data_qualifier))
-                    as arrow_array::ArrayRef,
+                std::sync::Arc::new(StringArray::from(self.data_qualifier)) as ArrayRef,
             ),
             (
                 "flow_direction",
-                std::sync::Arc::new(StringArray::from(self.flow_direction))
-                    as arrow_array::ArrayRef,
+                std::sync::Arc::new(StringArray::from(self.flow_direction)) as ArrayRef,
             ),
             (
                 "kind",
-                std::sync::Arc::new(StringArray::from(self.kind)) as arrow_array::ArrayRef,
+                std::sync::Arc::new(StringArray::from(self.kind)) as ArrayRef,
             ),
             (
                 "phase",
-                std::sync::Arc::new(StringArray::from(self.phase)) as arrow_array::ArrayRef,
+                std::sync::Arc::new(StringArray::from(self.phase)) as ArrayRef,
             ),
             (
                 "uom",
-                std::sync::Arc::new(StringArray::from(self.uom)) as arrow_array::ArrayRef,
+                std::sync::Arc::new(StringArray::from(self.uom)) as ArrayRef,
             ),
         ]);
     }
