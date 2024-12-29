@@ -1,0 +1,11 @@
+[workspace]
+
+members = ["lib/wasm", "lib/personalgreenbutton", "lib/columnar_struct_vec", "cli-frontend"]
+
+resolver = "2"
+
+[profile.release]
+opt-level = 'z'
+lto = true        # Enable Link Time Optimization (LTO)
+codegen-units = 1 # Reduce Parallel Code Generation Units to Increase Optimization
+panic = "abort"   # Reduce panic code

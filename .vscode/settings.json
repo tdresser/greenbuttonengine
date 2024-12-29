@@ -1,0 +1,8 @@
+{
+    "rust-analyzer.linkedProjects": [
+        "./cli-frontend/Cargo.toml",
+    ],
+    "rust-analyzer.cargo.extraEnv": {
+        "OUT_DIR": "generated"
+    }
+}

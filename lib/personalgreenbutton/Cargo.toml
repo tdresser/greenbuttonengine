@@ -1,0 +1,43 @@
+[package]
+name = "personalgreenbutton"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+columnar_struct_vec = { path = "../columnar_struct_vec" }
+anyhow = "1.0.79"
+regex = { version = "1.10.4", default-features = false }
+roxmltree = { version = "0.19.0", default-features = false, features = ["std"] }
+chrono = "0.4.33"
+# In the non-wasm case, ideally we wouldn't pull this in,
+# but for simplicity, we won't worry about it.
+wasm-bindgen = { version = "0.2.92", optional = false }
+js-sys = "0.3.70"
+
+phf = { version = "0.11.1", default-features = false }
+phf_shared = "0.11.1"
+
+once_cell = "1.19.0"
+arrow = { version = "52.1.0", default-features = false, features = ["csv"] }
+bytes = { version = "1.6.1", default-features = false }
+arrow-array = "52.1.0"
+arrow-schema = "52.1.0"
+parquet = { version = "52.1.0", default-features = false, features = [
+    "arrow",
+    "snap",
+] }
+
+[package.metadata.wasm-pack.profile.profiling]
+wasm-opt = ['-g', '-O']
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = ['-Oz']
+
+[build-dependencies]
+phf = { version = "0.11.1", default-features = false }
+phf_codegen = "0.11.1"
+phf_shared = "0.11.1"
+polars = { version = "0.37.0", features = ["lazy"] }
+roxmltree = { version = "0.19.0", default-features = false, features = ["std"] }
+anyhow = "1.0.79"
+itertools = "0.13.0"

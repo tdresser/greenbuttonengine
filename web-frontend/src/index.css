@@ -1,0 +1,41 @@
+html {
+  display: block;
+}
+
+body {
+  padding: 1em;
+}
+
+button {
+  width: 100%;
+}
+
+#draghighlight {
+  box-sizing: border-box;
+  border: 0.2em dashed transparent;
+  border-radius: 0.5em;
+  padding: 0.4em;
+  margin: -0.6em;
+}
+
+#draghighlight.dragover {
+  border-color: #aaf;
+}
+
+.error {
+  color: #a66;
+}
+
+.row {
+  display: flex;
+  gap: 1em;
+  margin-top: 1em;
+}
+
+#readme a {
+  background-color: #ddd;
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  padding: 0.5em;
+}

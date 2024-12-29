@@ -1,0 +1,24 @@
+[package]
+name = "wasm"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+chrono = "0.4.33"
+js-sys = "0.3.68"
+personalgreenbutton = { path = "../personalgreenbutton" }
+wasm-bindgen = "0.2.91"
+
+console_error_panic_hook = "0.1.7"
+once_cell = "1.19.0"
+
+[package.metadata.wasm-pack.profile.profiling]
+wasm-opt = ['-g', '-O']
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = ['-Oz']
