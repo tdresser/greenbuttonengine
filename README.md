@@ -10,7 +10,7 @@ Try it online [here](https://tdresser.github.io/green-button-engine/).
 It's implemented as a rust library (see [lib/personalgreenbutton](lib/personalgreenbutton)).
 There's a commandline tool in [cli-frontend](cli-frontend).
 
-InfluxDB export let's you get this into grafana, to build custom graphs like this:
+InfluxDB export lets you get this into grafana, to build custom graphs like this:
 ![Image of grafana dashboard showing green button data](doc-assets/grafana-example.png)
 
 ## CLI Frontend
