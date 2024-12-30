@@ -219,7 +219,7 @@ fn parse(s: &str) -> Result<(), anyhow::Error> {
 
 fn main() {
     let input_path = "preprocessing/espi.xsd.xml";
-    // TODO: not sure this is working.
+    println!("cargo:rerun-if-changed=build.rs");
     println!("cargo::rerun-if-changed={}", input_path);
 
     let str = read_to_string(input_path).unwrap();
