@@ -348,10 +348,12 @@ impl TimeSeries {
     }
 }
 
+#[cfg(target_arch = "wasm32")]
 fn vec_str_to_vec_string(x: &[&'static str]) -> Vec<String> {
     return x.iter().map(|x| x.to_string()).collect();
 }
 
+#[cfg(target_arch = "wasm32")]
 #[wasm_bindgen]
 impl TimeSeries {
     #[wasm_bindgen(getter)]
@@ -412,15 +414,7 @@ impl TimeSeries {
     pub fn uom(&self) -> Vec<String> {
         return vec_str_to_vec_string(&self.uom);
     }
-}
 
-// In general, we're not bothering to strip wasm related functions
-// from non wasm builds, but this one has a build failure I don't understand,
-// so we'll strip it.
-// TODO: clean this up.
-#[cfg(target_arch = "wasm32")]
-#[wasm_bindgen]
-impl TimeSeries {
     #[wasm_bindgen(getter, skip_typescript, js_name = "time_period_start")]
     pub fn time_period_start_unix_ms(&self) -> js_sys::Array {
         return self
@@ -431,7 +425,7 @@ impl TimeSeries {
     }
 }
 
-// Manually add the method to the interface.
+// Manually add the date getter to the interface.
 #[wasm_bindgen(typescript_custom_section)]
 const STEP_TYPES: &str = r###"
 export interface TimeSeries {
