@@ -13,6 +13,20 @@ import init, {
 const denormalized: Signal<TimeSeries[]> = signal([]);
 
 const errorsEl = document.getElementById('errors')!;
+const statusEl = document.getElementById('status')!;
+let inWasmBlock = false;
+
+async function callWasmBlock(f: () => void) {
+  inWasmBlock = true;
+  statusEl.style.opacity = "1";
+  statusEl.innerText = "Working";
+  await init();
+  const ret = await f();
+  statusEl.style.opacity = "0";
+  inWasmBlock = false;
+  return ret;
+
+}
 
 // From https://gist.github.com/Lehoczky/241f046b05c54af65918676888fc783f.
 function download(
@@ -38,25 +52,35 @@ function download(
 (async function main() {
   // In theory, all the wasm stuff could live in a worker.
   // For simplicity of this demo, all this just runs on main.
-  await init();
+  init().then(() => {
+    if (!inWasmBlock) {
+      statusEl.style.opacity = "0";
+    }
+  })
 
-  document.getElementById('get_csv')!.addEventListener('click', () => {
-    const timeseries = get_timeseries();
-    download('timeseries.csv', timeseries.asCSV(), 'text/csv');
+  document.getElementById('get_csv')!.addEventListener('click', async () => {
+    await callWasmBlock(() => {
+      const timeseries = get_timeseries();
+      download('timeseries.csv', timeseries.asCSV(), 'text/csv');
+    })
   });
 
-  document.getElementById('get_influx')!.addEventListener('click', () => {
-    const timeseries = get_timeseries();
-    download('timeseries.txt', timeseries.asInfluxdb(), 'text/plain');
+  document.getElementById('get_influx')!.addEventListener('click', async () => {
+    await callWasmBlock(() => {
+      const timeseries = get_timeseries();
+      download('timeseries.txt', timeseries.asInfluxdb(), 'text/plain');
+    });
   });
 
-  document.getElementById('get_parquet')!.addEventListener('click', () => {
-    const timeseries = get_timeseries();
-    download(
-      'timeseries.parquet',
-      timeseries.asParquet(),
-      'application/octet-stream',
-    );
+  document.getElementById('get_parquet')!.addEventListener('click', async () => {
+    await callWasmBlock(() => {
+      const timeseries = get_timeseries();
+      download(
+        'timeseries.parquet',
+        timeseries.asParquet(),
+        'application/octet-stream',
+      );
+    });
   });
 
   function onFail(msg: string) {
@@ -90,20 +114,23 @@ function download(
     errorsEl.innerHTML = '';
 
     const handles = await window.showOpenFilePicker({ multiple: true });
-    for (const handle of handles) {
-      try {
-        const file = await handle.getFile();
-        const contents = await readFile(file);
-        ingest_xml(contents, file.name);
-      } catch (e: any) {
-        onFail(e.toString());
+    await callWasmBlock(async () => {
+      for (const handle of handles) {
+        try {
+          const file = await handle.getFile();
+          const contents = await readFile(file);
+          ingest_xml(contents, file.name);
+        } catch (e: any) {
+          onFail(e.toString());
+        }
       }
-    }
 
-    denormalized.value = get_timeseries_chunked();
+      denormalized.value = get_timeseries_chunked();
+    });
+
   });
 
-  document.documentElement.addEventListener('dragover', (event: DragEvent) => {
+  document.documentElement.addEventListener('dragover', async (event: DragEvent) => {
     event.preventDefault();
     if (!dragging) {
       dragging = true;
@@ -132,20 +159,22 @@ function download(
       event.preventDefault();
       dragging = false;
       dragHighlight.classList.remove('dragover');
-      if (!event.dataTransfer) {
-        return;
-      }
-      for (const item of event.dataTransfer.items) {
-        if (item.kind === 'file') {
-          const file = item.getAsFile();
-          if (!file) {
-            continue;
-          }
-          const xml = await readFile(file);
-          ingest_xml(xml, file.name);
+      await callWasmBlock(async () => {
+        if (!event.dataTransfer) {
+          return;
         }
-      }
-      denormalized.value = get_timeseries_chunked();
+        for (const item of event.dataTransfer.items) {
+          if (item.kind === 'file') {
+            const file = item.getAsFile();
+            if (!file) {
+              continue;
+            }
+            const xml = await readFile(file);
+            ingest_xml(xml, file.name);
+          }
+        }
+        denormalized.value = get_timeseries_chunked();
+      });
     },
   );
 

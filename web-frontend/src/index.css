@@ -32,10 +32,22 @@ button {
   margin-top: 1em;
 }
 
-#readme a {
-  background-color: #ddd;
+#footer {
+  width:auto;
+  display:flex;
   position: fixed;
-  right: 0;
-  bottom: 0;
+  align-items: right;
+  right: 0.5em;
+  bottom: 0.5em;
+  gap:0.5em;
+}
+
+#readme {
+  background-color: #ddd;
   padding: 0.5em;
+}
+
+#status {
+  background-color: #ddd;
+  padding:0.5em;
 }
