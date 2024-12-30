@@ -438,3 +438,35 @@ export interface TimeSeries {
 	time_period_start: Date[];
 }
 "###;
+
+#[cfg(test)]
+mod tests {
+    use super::TimeSeries;
+
+    fn get_test_timeseries() -> TimeSeries {
+        return TimeSeries {
+            title: vec!["a".to_string(), "b".to_string()],
+            cost: vec![1.0, 2.0],
+            quality: vec!["a", "b"],
+            value: vec![3.0, 4.0],
+            tou: vec![1, 2],
+            time_period_start_unix_ms: vec![3, 4],
+            time_period_duration_seconds: vec![3, 4],
+            accumulation_behaviour: vec!["a", "b"],
+            commodity: vec!["a", "b"],
+            currency: vec!["a", "b"],
+            data_qualifier: vec!["a", "b"],
+            flow_direction: vec!["a", "b"],
+            kind: vec!["a", "b"],
+            phase: vec!["a", "b"],
+            uom: vec!["a", "b"],
+        };
+    }
+
+    #[test]
+    fn as_parquet() {
+        let test = get_test_timeseries();
+        let parquet = test.as_parquet().unwrap();
+        assert_eq!(parquet.len(), 4669);
+    }
+}

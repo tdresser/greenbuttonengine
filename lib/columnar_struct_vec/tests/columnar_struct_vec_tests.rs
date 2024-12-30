@@ -1,5 +1,5 @@
 #[cfg(test)]
-mod tests {
+mod columnar_struct_vec_tests {
     use columnar_struct_vec::columnar_struct_vec;
 
     #[columnar_struct_vec]

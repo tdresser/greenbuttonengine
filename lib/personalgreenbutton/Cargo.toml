@@ -19,7 +19,10 @@ phf_shared = "0.11.1"
 
 once_cell = "1.19.0"
 arrow = { version = "52.1.0", default-features = false, features = ["csv"] }
-parquet = { version = "52.1.0", default-features = false, features = ["arrow"] }
+parquet = { version = "52.1.0", default-features = false, features = [
+    "arrow",
+    "snap",
+] }
 
 [build-dependencies]
 phf = { version = "0.11.1", default-features = false }
