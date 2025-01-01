@@ -23,6 +23,7 @@ parquet = { version = "52.1.0", default-features = false, features = [
     "arrow",
     "snap",
 ] }
+permutation = "0.4.1"
 
 [dev-dependencies]
 criterion = "0.5.1"

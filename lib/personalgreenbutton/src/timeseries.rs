@@ -52,23 +52,6 @@ pub struct TimeSeries {
     pub uom: Vec<&'static str>,
 }
 
-// Based on https://www.reddit.com/r/rust/comments/mfjiqc/comment/gsx76mb/?utm_source=share&utm_medium=web3x&utm_name=web3xcss&utm_term=1&utm_content=share_button
-pub fn reorder<T>(arr: &mut [T], mut index: Vec<usize>) {
-    assert_eq!(arr.len(), index.len());
-    for i in 0..index.len() {
-        let mut left = i;
-        let mut right = index[i];
-
-        while right != i {
-            arr.swap(left, right);
-            index[left] = left;
-            left = right;
-            right = index[right];
-        }
-        index[left] = left;
-    }
-}
-
 impl TimeSeries {
     // Requires sorted data.
     pub fn take_first_title_chunk(&mut self) -> Option<TimeSeries> {
@@ -126,29 +109,27 @@ impl TimeSeries {
     }
 
     pub fn sort(&mut self) {
-        let mut indices: Vec<_> = (0..self.value.len()).collect();
-        indices.sort_unstable_by(|i, j| {
+        let indices: Vec<_> = (0..self.value.len()).collect();
+        let mut p = permutation::sort_unstable_by(indices, |i, j| {
             self.title[*i]
                 .cmp(&self.title[*j])
                 .then(self.time_period_start_unix_ms[*i].cmp(&self.time_period_start_unix_ms[*j]))
         });
-
-        // TODO: try to get rid of these copies.
-        reorder(&mut self.title, indices.clone());
-        reorder(&mut self.cost, indices.clone());
-        reorder(&mut self.quality, indices.clone());
-        reorder(&mut self.value, indices.clone());
-        reorder(&mut self.tou, indices.clone());
-        reorder(&mut self.time_period_start_unix_ms, indices.clone());
-        reorder(&mut self.time_period_duration_seconds, indices.clone());
-        reorder(&mut self.accumulation_behaviour, indices.clone());
-        reorder(&mut self.commodity, indices.clone());
-        reorder(&mut self.currency, indices.clone());
-        reorder(&mut self.data_qualifier, indices.clone());
-        reorder(&mut self.flow_direction, indices.clone());
-        reorder(&mut self.kind, indices.clone());
-        reorder(&mut self.phase, indices.clone());
-        reorder(&mut self.uom, indices.clone());
+        p.apply_slice_in_place(&mut self.title);
+        p.apply_slice_in_place(&mut self.cost);
+        p.apply_slice_in_place(&mut self.quality);
+        p.apply_slice_in_place(&mut self.value);
+        p.apply_slice_in_place(&mut self.tou);
+        p.apply_slice_in_place(&mut self.time_period_start_unix_ms);
+        p.apply_slice_in_place(&mut self.time_period_duration_seconds);
+        p.apply_slice_in_place(&mut self.accumulation_behaviour);
+        p.apply_slice_in_place(&mut self.commodity);
+        p.apply_slice_in_place(&mut self.currency);
+        p.apply_slice_in_place(&mut self.data_qualifier);
+        p.apply_slice_in_place(&mut self.flow_direction);
+        p.apply_slice_in_place(&mut self.kind);
+        p.apply_slice_in_place(&mut self.phase);
+        p.apply_slice_in_place(&mut self.uom);
     }
 
     pub fn sort_and_chunk(mut self) -> Vec<TimeSeries> {
