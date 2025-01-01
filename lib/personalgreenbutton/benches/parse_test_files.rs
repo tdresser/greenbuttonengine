@@ -15,18 +15,30 @@ fn run(files: &[String]) -> TimeSeries {
     return timeseries;
 }
 
-fn bench(c: &mut Criterion) {
-    let files: Vec<_> = glob("../../test_files/*")
+fn get_test_files() -> Vec<String> {
+    return glob("../../test_files/*")
         .unwrap()
         .map(|path| {
             let path = &path.unwrap();
             return fs::read_to_string(path).expect("Should have been able to read the file");
         })
         .collect();
+}
+
+fn parse(c: &mut Criterion) {
+    let files = get_test_files();
     c.bench_function("parse_test_files", |b| {
         b.iter(|| {
-            println!("Start iteration.");
             run(&files);
+        })
+    });
+}
+
+fn sort(c: &mut Criterion) {
+    let timeseries = run(&get_test_files());
+    c.bench_function("sort", |b| {
+        b.iter(|| {
+            timeseries.clone().sort_and_chunk();
         })
     });
 }
@@ -34,6 +46,6 @@ fn bench(c: &mut Criterion) {
 criterion_group!(
     name = benches;
     config = Criterion::default().significance_level(0.1).sample_size(30);
-    targets = bench
+    targets = parse, sort
 );
 criterion_main!(benches);
