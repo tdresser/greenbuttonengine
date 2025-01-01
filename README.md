@@ -3,7 +3,7 @@
 This is a reusable library for convering [Green Button Engine](https://www.greenbuttondata.org/) XML
 into more usable formats (csv, influxdb, parquet).
 
-Try it online [here](https://tdresser.github.io/green-button-engine/).
+Try it online [here](https://tdresser.github.io/greenbuttonengine/).
 
 ![Image of web frontend](doc-assets/web-frontend-image.png)
 
