@@ -11,6 +11,7 @@ mod content;
 mod entry;
 mod gb_type_details;
 mod interval_reading;
+mod parquet_column_writers;
 mod parse_helpers;
 mod reading_type;
 mod time_period;

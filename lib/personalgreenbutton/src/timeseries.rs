@@ -1,10 +1,21 @@
-use arrow::{
-    array::{ArrayRef, Date64Array, Float32Array, Int32Array, RecordBatch, StringArray},
-    error::ArrowError,
+use std::sync::Arc;
+
+//use arrow::{
+//    array::{ArrayRef, Date64Array, Float32Array, Int32Array, RecordBatch, StringArray},
+//    error::ArrowError,
+//};
+//use parquet::{arrow::ArrowWriter, basic::Compression, file::properties::WriterProperties};
+use parquet::{
+    file::{
+        properties::WriterProperties,
+        writer::{SerializedFileWriter, TrackedWrite},
+    },
+    schema::parser::parse_message_type,
 };
-use parquet::{arrow::ArrowWriter, basic::Compression, file::properties::WriterProperties};
 use regex::Regex;
 use wasm_bindgen::prelude::wasm_bindgen;
+
+use crate::parquet_column_writers::{write_f32s, write_i32s, write_i64s, write_strs};
 
 // The initial version of this was mostly generated via procedural macro,
 // but the complexity didn't seem worth it. There's a lot of boilerplate
@@ -165,72 +176,6 @@ impl TimeSeries {
         self.uom.extend(other.uom);
     }
 
-    pub fn as_record_batch(self) -> Result<RecordBatch, ArrowError> {
-        return RecordBatch::try_from_iter(vec![
-            (
-                "title",
-                std::sync::Arc::new(StringArray::from(self.title)) as ArrayRef,
-            ),
-            (
-                "cost",
-                std::sync::Arc::new(Float32Array::from(self.cost)) as ArrayRef,
-            ),
-            (
-                "quality",
-                std::sync::Arc::new(StringArray::from(self.quality)) as ArrayRef,
-            ),
-            (
-                "value",
-                std::sync::Arc::new(Float32Array::from(self.value)) as ArrayRef,
-            ),
-            (
-                "tou",
-                std::sync::Arc::new(Int32Array::from(self.tou)) as ArrayRef,
-            ),
-            (
-                "time_period_start_unix_ms",
-                std::sync::Arc::new(Date64Array::from(self.time_period_start_unix_ms)) as ArrayRef,
-            ),
-            (
-                "time_period_duration",
-                std::sync::Arc::new(Int32Array::from(self.time_period_duration_seconds))
-                    as ArrayRef,
-            ),
-            (
-                "accumulation_behaviour",
-                std::sync::Arc::new(StringArray::from(self.accumulation_behaviour)) as ArrayRef,
-            ),
-            (
-                "commodity",
-                std::sync::Arc::new(StringArray::from(self.commodity)) as ArrayRef,
-            ),
-            (
-                "currency",
-                std::sync::Arc::new(StringArray::from(self.currency)) as ArrayRef,
-            ),
-            (
-                "data_qualifier",
-                std::sync::Arc::new(StringArray::from(self.data_qualifier)) as ArrayRef,
-            ),
-            (
-                "flow_direction",
-                std::sync::Arc::new(StringArray::from(self.flow_direction)) as ArrayRef,
-            ),
-            (
-                "kind",
-                std::sync::Arc::new(StringArray::from(self.kind)) as ArrayRef,
-            ),
-            (
-                "phase",
-                std::sync::Arc::new(StringArray::from(self.phase)) as ArrayRef,
-            ),
-            (
-                "uom",
-                std::sync::Arc::new(StringArray::from(self.uom)) as ArrayRef,
-            ),
-        ]);
-    }
-
     pub fn fix_provider_bugs_if_needed(&mut self, href: &str) {
         if href.contains("enova") {
             self.cost = self.cost.iter().map(|cost| cost * 100.0).collect();
@@ -252,29 +197,112 @@ impl TimeSeries {
 
     #[wasm_bindgen(js_name = "asCSV")]
     pub fn as_csv(&self) -> Result<String, String> {
-        let batch = self.clone().as_record_batch().map_err(|x| x.to_string())?;
-        let mut buf = Vec::<u8>::new();
-        {
-            let mut writer = arrow::csv::Writer::new(&mut buf);
-            writer.write(&batch).unwrap();
+        let mut wtr = csv::Writer::from_writer(vec![]);
+        wtr.write_record(&[
+            "title",
+            "cost",
+            "quality",
+            "value",
+            "tou",
+            "time_period_start_unix_ms",
+            "time_period_duration_seconds",
+            "accumulation_behaviour",
+            "commodity",
+            "currency",
+            "data_qualifier",
+            "flow_direction",
+            "kind",
+            "phase",
+            "uom",
+        ])
+        .map_err(|x| x.to_string())?;
+
+        for i in 0..self.title.len() {
+            wtr.write_record(&[
+                self.title[i].to_string(),
+                self.cost[i].to_string(),
+                self.quality[i].to_string(),
+                self.value[i].to_string(),
+                self.tou[i].to_string(),
+                self.time_period_start_unix_ms[i].to_string(),
+                self.time_period_duration_seconds[i].to_string(),
+                self.accumulation_behaviour[i].to_string(),
+                self.commodity[i].to_string(),
+                self.currency[i].to_string(),
+                self.data_qualifier[i].to_string(),
+                self.flow_direction[i].to_string(),
+                self.kind[i].to_string(),
+                self.phase[i].to_string(),
+                self.uom[i].to_string(),
+            ])
+            .map_err(|x| x.to_string())?;
         }
-        let csv = String::from_utf8(buf).unwrap();
+        let csv = String::from_utf8(wtr.into_inner().map_err(|x| x.to_string())?).unwrap();
         return Ok(csv);
     }
 
     #[wasm_bindgen(js_name = "asParquet")]
     pub fn as_parquet(&self) -> Result<Vec<u8>, String> {
-        let batch = self.clone().as_record_batch().map_err(|x| x.to_string())?;
-        let props = WriterProperties::builder()
-            .set_compression(Compression::SNAPPY)
-            .build();
-        let mut buf = Vec::<u8>::new();
+        // Originally authored when we had logic to convert a timeseries to arrow.
+        // We used the export to arrow, converted the arrow to parquet, and then
+        // pulled the schema off the parquet file via
+        // https://docs.rs/parquet/latest/parquet/schema/printer/index.html/
+        let message_type = "
+            message arrow_schema {
+                REQUIRED BYTE_ARRAY title (STRING);
+                REQUIRED FLOAT cost;
+                REQUIRED BYTE_ARRAY quality (STRING);
+                REQUIRED FLOAT value;
+                REQUIRED INT32 tou;
+                REQUIRED INT64 time_period_start_unix_ms (TIMESTAMP(MILLIS, false));
+                REQUIRED INT32 time_period_duration_seconds;
+                REQUIRED BYTE_ARRAY accumulation_behaviour (STRING);
+                REQUIRED BYTE_ARRAY commodity (STRING);
+                REQUIRED BYTE_ARRAY currency (STRING);
+                REQUIRED BYTE_ARRAY data_qualifier (STRING);
+                REQUIRED BYTE_ARRAY flow_direction (STRING);
+                REQUIRED BYTE_ARRAY kind (STRING);
+                REQUIRED BYTE_ARRAY phase (STRING);
+                REQUIRED BYTE_ARRAY uom (STRING);
+            }
+        ";
+        let schema = Arc::new(parse_message_type(message_type).unwrap());
+        let props = Arc::new(
+            WriterProperties::builder()
+                .set_compression(parquet::basic::Compression::SNAPPY)
+                .build(),
+        );
+        let buf: Vec<u8> = vec![];
+        let mut tracked_write: TrackedWrite<_> = TrackedWrite::new(buf);
+
+        let mut writer = SerializedFileWriter::new(&mut tracked_write, schema, props).unwrap();
         {
-            let mut writer = ArrowWriter::try_new(&mut buf, batch.schema(), Some(props)).unwrap();
-            writer.write(&batch).unwrap();
-            writer.close().map_err(|x| x.to_string())?;
+            // Order must match the schema.
+            let mut row_group_writer = writer.next_row_group().unwrap();
+            // Title is a special case, since it's Strings, not strs.
+            write_strs(
+                &mut row_group_writer,
+                &self.title.iter().map(|x| x.as_str()).collect::<Vec<_>>(),
+            )?;
+            write_f32s(&mut row_group_writer, &self.cost)?;
+            write_strs(&mut row_group_writer, &self.quality)?;
+            write_f32s(&mut row_group_writer, &self.value)?;
+            write_i32s(&mut row_group_writer, &self.tou)?;
+            write_i64s(&mut row_group_writer, &self.time_period_start_unix_ms)?;
+            write_i32s(&mut row_group_writer, &self.time_period_duration_seconds)?;
+            write_strs(&mut row_group_writer, &self.accumulation_behaviour)?;
+            write_strs(&mut row_group_writer, &self.commodity)?;
+            write_strs(&mut row_group_writer, &self.currency)?;
+            write_strs(&mut row_group_writer, &self.data_qualifier)?;
+            write_strs(&mut row_group_writer, &self.flow_direction)?;
+            write_strs(&mut row_group_writer, &self.kind)?;
+            write_strs(&mut row_group_writer, &self.phase)?;
+            write_strs(&mut row_group_writer, &self.uom)?;
+            row_group_writer.close().map_err(|x| x.to_string())?;
         }
-        return Ok(buf);
+        writer.close().unwrap();
+
+        return Ok(tracked_write.inner().to_vec());
     }
 
     #[wasm_bindgen(js_name = "asInfluxdb")]
