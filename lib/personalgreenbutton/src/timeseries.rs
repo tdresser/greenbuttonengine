@@ -1,10 +1,3 @@
-use std::sync::Arc;
-
-//use arrow::{
-//    array::{ArrayRef, Date64Array, Float32Array, Int32Array, RecordBatch, StringArray},
-//    error::ArrowError,
-//};
-//use parquet::{arrow::ArrowWriter, basic::Compression, file::properties::WriterProperties};
 use parquet::{
     file::{
         properties::WriterProperties,
@@ -13,6 +6,7 @@ use parquet::{
     schema::parser::parse_message_type,
 };
 use regex::Regex;
+use std::sync::Arc;
 use wasm_bindgen::prelude::wasm_bindgen;
 
 use crate::parquet_column_writers::{write_f32s, write_i32s, write_i64s, write_strs};
