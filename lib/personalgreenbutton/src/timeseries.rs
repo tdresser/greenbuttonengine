@@ -447,7 +447,7 @@ mod tests {
             quality: vec!["a", "b"],
             value: vec![3.0, 4.0],
             tou: vec![1, 2],
-            time_period_start_unix_ms: vec![3, 4],
+            time_period_start_unix_ms: vec![1737073322000, 1737073323000],
             time_period_duration_seconds: vec![3, 4],
             accumulation_behaviour: vec!["a", "b"],
             commodity: vec!["a", "b"],
@@ -465,5 +465,33 @@ mod tests {
         let test = get_test_timeseries();
         let parquet = test.as_parquet().unwrap();
         assert_eq!(parquet.len(), 4669);
+    }
+
+    #[test]
+    fn as_csv() {
+        let test = get_test_timeseries();
+        let csv = test.as_csv().unwrap();
+        let csv_read = csv::Reader::from_reader(csv.as_bytes());
+        let first_row = csv_read.into_records().next().unwrap().unwrap();
+        assert_eq!(
+            first_row,
+            vec![
+                "a",
+                "1",
+                "a",
+                "3",
+                "1",
+                "1737073322000",
+                "3",
+                "a",
+                "a",
+                "a",
+                "a",
+                "a",
+                "a",
+                "a",
+                "a"
+            ]
+        );
     }
 }
