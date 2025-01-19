@@ -163,7 +163,7 @@ pub fn denormalize_and_link(
 
         timeseries
             .time_period_start_unix
-            .push(ir.time_period_start_unix[i]);
+            .push(date_time.and_utc().timestamp());
 
         let rt_index = entry_index_to_reading_type_index[entry_index]
             .ok_or(anyhow!("Missing reading type"))?;
