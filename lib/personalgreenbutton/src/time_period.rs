@@ -21,7 +21,7 @@ pub fn parse_time_period_data(
         }
     }
     let seconds: i64 = parse_text_of(start_child.ok_or(anyhow!("Missing start time."))?)?;
-    row_builder.time_period_start_unix_ms(seconds * 1000);
+    row_builder.time_period_start_unix(seconds);
     row_builder.time_period_duration_seconds(parse_text_of(
         duration_child.ok_or(anyhow!("Missing duration"))?,
     )?);

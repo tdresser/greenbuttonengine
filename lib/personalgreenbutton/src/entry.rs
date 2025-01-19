@@ -10,6 +10,7 @@ use columnar_struct_vec::columnar_struct_vec;
 
 use crate::content::parse_content_data;
 use crate::interval_reading::IntervalReadings;
+use crate::local_time_parameters::LocalTimeParameters;
 use crate::reading_type::ReadingTypes;
 
 #[derive(Debug)]
@@ -80,9 +81,10 @@ pub fn parse_entry(
     entries: Entries,
     interval_readings: IntervalReadings,
     reading_types: ReadingTypes,
+    local_time_parameters: LocalTimeParameters,
     node: Node,
     index: usize,
-) -> Result<(Entries, IntervalReadings, ReadingTypes)> {
+) -> Result<(Entries, IntervalReadings, ReadingTypes, LocalTimeParameters)> {
     let mut row_builder = entries.start_push();
     let children = node.children();
 
@@ -115,10 +117,12 @@ pub fn parse_entry(
             _ => (),
         }
     }
-    let (entry_type, interval_readings, reading_types) = parse_content_data(
+
+    let (entry_type, interval_readings, reading_types, local_time_parameters) = parse_content_data(
         index,
         interval_readings,
         reading_types,
+        local_time_parameters,
         content_node.ok_or(anyhow!("Missing content node"))?,
     )?;
 
@@ -127,6 +131,7 @@ pub fn parse_entry(
         row_builder.finalize_push()?,
         interval_readings,
         reading_types,
+        local_time_parameters,
     ));
 }
 
@@ -134,6 +139,7 @@ pub fn parse_entry(
 pub enum EntryType {
     ReadingTypeWithIndex(usize),
     IntervalBlock,
+    LocalTimeParameters,
     Other,
     Unset,
 }
@@ -143,6 +149,7 @@ impl std::fmt::Display for EntryType {
         let s = match self {
             EntryType::ReadingTypeWithIndex(_) => "reading type",
             EntryType::IntervalBlock => "interval block",
+            EntryType::LocalTimeParameters => "local time parameters",
             EntryType::Other => "unparsed",
             EntryType::Unset => "ERROR",
         };

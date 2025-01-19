@@ -34,7 +34,7 @@ pub struct TimeSeries {
     #[wasm_bindgen(skip)]
     pub tou: Vec<i32>,
     #[wasm_bindgen(skip)]
-    pub time_period_start_unix_ms: Vec<i64>,
+    pub time_period_start_unix: Vec<i64>,
     #[wasm_bindgen(skip)]
     pub time_period_duration_seconds: Vec<i32>,
 
@@ -83,8 +83,8 @@ impl TimeSeries {
             quality: self.quality.drain(0..after_first_chunk_index).collect(),
             value: self.value.drain(0..after_first_chunk_index).collect(),
             tou: self.tou.drain(0..after_first_chunk_index).collect(),
-            time_period_start_unix_ms: self
-                .time_period_start_unix_ms
+            time_period_start_unix: self
+                .time_period_start_unix
                 .drain(0..after_first_chunk_index)
                 .collect(),
             time_period_duration_seconds: self
@@ -118,14 +118,14 @@ impl TimeSeries {
         let mut p = permutation::sort_unstable_by(indices, |i, j| {
             self.title[*i]
                 .cmp(&self.title[*j])
-                .then(self.time_period_start_unix_ms[*i].cmp(&self.time_period_start_unix_ms[*j]))
+                .then(self.time_period_start_unix[*i].cmp(&self.time_period_start_unix[*j]))
         });
         p.apply_slice_in_place(&mut self.title);
         p.apply_slice_in_place(&mut self.cost);
         p.apply_slice_in_place(&mut self.quality);
         p.apply_slice_in_place(&mut self.value);
         p.apply_slice_in_place(&mut self.tou);
-        p.apply_slice_in_place(&mut self.time_period_start_unix_ms);
+        p.apply_slice_in_place(&mut self.time_period_start_unix);
         p.apply_slice_in_place(&mut self.time_period_duration_seconds);
         p.apply_slice_in_place(&mut self.accumulation_behaviour);
         p.apply_slice_in_place(&mut self.commodity);
@@ -154,8 +154,8 @@ impl TimeSeries {
         self.quality.extend(other.quality);
         self.value.extend(other.value);
         self.tou.extend(other.tou);
-        self.time_period_start_unix_ms
-            .extend(other.time_period_start_unix_ms);
+        self.time_period_start_unix
+            .extend(other.time_period_start_unix);
         self.time_period_duration_seconds
             .extend(other.time_period_duration_seconds);
         // Reading type.
@@ -198,7 +198,7 @@ impl TimeSeries {
             "quality",
             "value",
             "tou",
-            "time_period_start_unix_ms",
+            "time_period_start_unix",
             "time_period_duration_seconds",
             "accumulation_behaviour",
             "commodity",
@@ -218,7 +218,7 @@ impl TimeSeries {
                 self.quality[i].to_string(),
                 self.value[i].to_string(),
                 self.tou[i].to_string(),
-                self.time_period_start_unix_ms[i].to_string(),
+                self.time_period_start_unix[i].to_string(),
                 self.time_period_duration_seconds[i].to_string(),
                 self.accumulation_behaviour[i].to_string(),
                 self.commodity[i].to_string(),
@@ -248,7 +248,7 @@ impl TimeSeries {
                 REQUIRED BYTE_ARRAY quality (STRING);
                 REQUIRED FLOAT value;
                 REQUIRED INT32 tou;
-                REQUIRED INT64 time_period_start_unix_ms (TIMESTAMP(MILLIS, false));
+                REQUIRED INT64 time_period_start_unix (TIMESTAMP(MILLIS, false));
                 REQUIRED INT32 time_period_duration_seconds;
                 REQUIRED BYTE_ARRAY accumulation_behaviour (STRING);
                 REQUIRED BYTE_ARRAY commodity (STRING);
@@ -282,7 +282,14 @@ impl TimeSeries {
             write_strs(&mut row_group_writer, &self.quality)?;
             write_f32s(&mut row_group_writer, &self.value)?;
             write_i32s(&mut row_group_writer, &self.tou)?;
-            write_i64s(&mut row_group_writer, &self.time_period_start_unix_ms)?;
+            write_i64s(
+                &mut row_group_writer,
+                &self
+                    .time_period_start_unix
+                    .iter()
+                    .map(|x| x * 1000)
+                    .collect::<Vec<_>>(),
+            )?;
             write_i32s(&mut row_group_writer, &self.time_period_duration_seconds)?;
             write_strs(&mut row_group_writer, &self.accumulation_behaviour)?;
             write_strs(&mut row_group_writer, &self.commodity)?;
@@ -344,7 +351,7 @@ impl TimeSeries {
             }
             let fields = fields.join(",");
 
-            let time_ns = self.time_period_start_unix_ms[i] * 1000000;
+            let time_ns = self.time_period_start_unix[i] * 1000000000;
             result += &format!("{measurement},{tags} {fields} {time_ns}\n");
         }
         return result.to_owned();
@@ -419,11 +426,11 @@ impl TimeSeries {
     }
 
     #[wasm_bindgen(getter, skip_typescript, js_name = "time_period_start")]
-    pub fn time_period_start_unix_ms(&self) -> js_sys::Array {
+    pub fn time_period_start_unix(&self) -> js_sys::Array {
         return self
-            .time_period_start_unix_ms
+            .time_period_start_unix
             .iter()
-            .map(|x| js_sys::Date::from(chrono::DateTime::from_timestamp(*x / 1000, 0).unwrap()))
+            .map(|x| js_sys::Date::from(chrono::DateTime::from_timestamp(*x, 0).unwrap()))
             .collect::<js_sys::Array>();
     }
 }
@@ -447,7 +454,7 @@ mod tests {
             quality: vec!["a", "b"],
             value: vec![3.0, 4.0],
             tou: vec![1, 2],
-            time_period_start_unix_ms: vec![1737073322000, 1737073323000],
+            time_period_start_unix: vec![1737073322, 1737073323],
             time_period_duration_seconds: vec![3, 4],
             accumulation_behaviour: vec!["a", "b"],
             commodity: vec!["a", "b"],
@@ -464,7 +471,7 @@ mod tests {
     fn as_parquet() {
         let test = get_test_timeseries();
         let parquet = test.as_parquet().unwrap();
-        assert_eq!(parquet.len(), 4669);
+        assert_eq!(parquet.len(), 3614);
     }
 
     #[test]
@@ -481,7 +488,7 @@ mod tests {
                 "a",
                 "3",
                 "1",
-                "1737073322000",
+                "1737073322",
                 "3",
                 "a",
                 "a",

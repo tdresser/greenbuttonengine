@@ -20,7 +20,7 @@ pub struct IntervalReadings {
     pub value: i64,
     #[struct_builder(default = 0)]
     pub tou: i32,
-    pub time_period_start_unix_ms: i64,
+    pub time_period_start_unix: i64,
     pub time_period_duration_seconds: i32,
 }
 

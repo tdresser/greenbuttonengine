@@ -3,7 +3,11 @@
 use std::collections::HashMap;
 
 use anyhow::{anyhow, Ok, Result};
+use chrono::{DateTime, Datelike, NaiveDateTime, TimeDelta};
 use entry::parse_entry;
+use local_time_parameters::{
+    get_date_from_dst_rule, LocalTimeParameters, LocalTimeParametersSingle,
+};
 use parse_helpers::enums_to_strings;
 use roxmltree::Document;
 
@@ -11,6 +15,7 @@ mod content;
 mod entry;
 mod gb_type_details;
 mod interval_reading;
+mod local_time_parameters;
 mod parquet_column_writers;
 mod parse_helpers;
 mod reading_type;
@@ -28,10 +33,21 @@ pub fn denormalize_and_link(
     entries: &Entries,
     interval_readings: &IntervalReadings,
     reading_types: &ReadingTypes,
+    local_time_parameters: &LocalTimeParameters,
 ) -> Result<TimeSeries> {
     // We want to map each entry which contains interval readings to it's reading type.
     // Then we can iterate interval readings and
     // pull out each reading type with a single lookup.
+
+    if local_time_parameters.len() > 1 {
+        return Err(anyhow!("Input with multiple LocalTimeParameters is currently unsupported. Please let me know if this would be useful to you!"));
+    }
+
+    if local_time_parameters.len() == 0 {
+        return Err(anyhow!(
+            "Missing LocalTimeParameters. Please let me know if you see this failure."
+        ));
+    }
 
     let mut entry_index_by_entry_href = HashMap::<&str, usize>::new();
 
@@ -91,11 +107,22 @@ pub fn denormalize_and_link(
     let power_of_ten_multiplier = &reading_types.power_of_ten_multiplier;
     let uom = enums_to_strings("ReadingType", "uom", &reading_types.uom);
 
+    let local_time_parameters = LocalTimeParametersSingle {
+        dst_start_rule: local_time_parameters.dst_start_rule[0],
+        dst_end_rule: local_time_parameters.dst_end_rule[0],
+        dst_offset: TimeDelta::seconds(local_time_parameters.dst_offset[0]),
+        tz_offset: TimeDelta::seconds(local_time_parameters.tz_offset[0]),
+    };
+
+    // Year to start_date, end_date.
+    let mut last_year = 0;
+    let mut last_dst_start: Option<NaiveDateTime> = None;
+    let mut last_dst_end: Option<NaiveDateTime> = None;
+
     // Now we can map from an interval record href to a reading type index.
     // Memory locality would be better if we did this one column at a time,
     // but because this is somewhat random access anyways, it likely doesn't matter too much.
     for i in 0..interval_readings.len() {
-        //for (index, row) in interval_readings.iter().enumerate() {
         let entry_index = interval_readings.entry_index[i];
         timeseries.title.push(entries.title[entry_index].clone());
 
@@ -107,9 +134,36 @@ pub fn denormalize_and_link(
         timeseries
             .time_period_duration_seconds
             .push(ir.time_period_duration_seconds[i]);
+
+        let unix_timestamp = ir.time_period_start_unix[i];
+        let mut date_time = DateTime::from_timestamp(unix_timestamp, 0)
+            .unwrap()
+            .naive_utc();
+        let year = date_time.year();
+        if year != last_year {
+            last_year = year;
+            // TODO: ideally we wouldn't just ignore invalid dst rules, but currently, they're pretty common.
+            last_dst_start = get_date_from_dst_rule(local_time_parameters.dst_start_rule, year)
+                .unwrap_or_else(|x| {
+                    eprintln!("{}", x);
+                    None
+                });
+            last_dst_end = get_date_from_dst_rule(local_time_parameters.dst_end_rule, year)
+                .unwrap_or_else(|x| {
+                    eprintln!("{}", x);
+                    None
+                });
+        }
+        if let (Some(last_dst_start), Some(last_dst_end)) = (last_dst_start, last_dst_end) {
+            if last_dst_start < date_time && date_time < last_dst_end {
+                date_time += local_time_parameters.dst_offset;
+            }
+        }
+        date_time += local_time_parameters.tz_offset;
+
         timeseries
-            .time_period_start_unix_ms
-            .push(ir.time_period_start_unix_ms[i]);
+            .time_period_start_unix
+            .push(ir.time_period_start_unix[i]);
 
         let rt_index = entry_index_to_reading_type_index[entry_index]
             .ok_or(anyhow!("Missing reading type"))?;
@@ -148,15 +202,32 @@ pub fn parse_xml<'a, 'b>(xml: &str) -> Result<TimeSeries> {
     let mut entries = Entries::default();
     let mut interval_readings = IntervalReadings::default();
     let mut reading_types = ReadingTypes::default();
+    let mut local_time_parameters = LocalTimeParameters::default();
 
     for node in feed.children() {
         if node.is_element() && node.tag_name().name() == "entry" {
             let entries_len = entries.len();
-            (entries, interval_readings, reading_types) =
-                parse_entry(entries, interval_readings, reading_types, node, entries_len)?;
+            (
+                entries,
+                interval_readings,
+                reading_types,
+                local_time_parameters,
+            ) = parse_entry(
+                entries,
+                interval_readings,
+                reading_types,
+                local_time_parameters,
+                node,
+                entries_len,
+            )?;
         }
     }
 
-    let timeseries = denormalize_and_link(&entries, &interval_readings, &reading_types)?;
+    let timeseries = denormalize_and_link(
+        &entries,
+        &interval_readings,
+        &reading_types,
+        &local_time_parameters,
+    )?;
     return Ok(timeseries);
 }

@@ -3,6 +3,8 @@ use roxmltree::Node;
 use anyhow::anyhow;
 use anyhow::Result;
 
+use crate::local_time_parameters::parse_local_time_parameters;
+use crate::local_time_parameters::LocalTimeParameters;
 use crate::{
     entry::EntryType,
     interval_reading::{parse_interval_readings, IntervalReadings},
@@ -13,14 +15,21 @@ pub fn parse_content_data(
     entry_index: usize,
     mut interval_readings: IntervalReadings,
     mut reading_types: ReadingTypes,
+    mut local_time_parameters: LocalTimeParameters,
     node: Node,
-) -> Result<(EntryType, IntervalReadings, ReadingTypes)> {
+) -> Result<(
+    EntryType,
+    IntervalReadings,
+    ReadingTypes,
+    LocalTimeParameters,
+)> {
     let mut entry_type = EntryType::Unset;
     // There should only be one interval block node, but some providers (e.g., Hydro One) include
     // multiple in a single content block. I've provided them feedback, but until this is fixed, we'll
     // just parse it anyways.
     let mut interval_block_nodes: Vec<Node> = vec![];
     let mut reading_type_node: Option<Node> = None;
+    let mut local_time_parameters_node: Option<Node> = None;
     let children = node.children().filter(|x| x.is_element());
     for child in children {
         match child.tag_name().name() {
@@ -29,7 +38,10 @@ pub fn parse_content_data(
                 interval_block_nodes.push(child);
             }
             "ElectricPowerQualitySummary" => entry_type.set(EntryType::Other)?,
-            "LocalTimeParameters" => entry_type.set(EntryType::Other)?,
+            "LocalTimeParameters" => {
+                entry_type.set(EntryType::LocalTimeParameters)?;
+                local_time_parameters_node = Some(child);
+            }
             "MeterReading" => entry_type.set(EntryType::Other)?,
             "ReadingType" => {
                 entry_type.set(EntryType::ReadingTypeWithIndex(reading_types.len()))?;
@@ -47,5 +59,16 @@ pub fn parse_content_data(
     if let Some(reading_type_node) = reading_type_node {
         reading_types = parse_reading_types(reading_types, reading_type_node, entry_index)?;
     }
-    return Ok((entry_type, interval_readings, reading_types));
+
+    if let Some(local_time_parameters_node) = local_time_parameters_node {
+        local_time_parameters =
+            parse_local_time_parameters(local_time_parameters, local_time_parameters_node)?;
+    };
+
+    return Ok((
+        entry_type,
+        interval_readings,
+        reading_types,
+        local_time_parameters,
+    ));
 }
