@@ -1,6 +1,6 @@
 # Green Button Engine
 
-This is a reusable library for convering [Green Button Engine](https://www.greenbuttondata.org/) XML
+This is a reusable library for converting [Green Button Engine](https://www.greenbuttondata.org/) XML
 into more usable formats (csv, influxdb, parquet).
 
 Try it online [here](https://tdresser.github.io/greenbuttonengine/).
